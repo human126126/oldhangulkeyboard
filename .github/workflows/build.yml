@@ -1,48 +1,58 @@
+cd "/Users/hanul/_28hangul"
+mkdir -p ".github/workflows"
+cat > ".github/workflows/build.yml" <<'YAML'
 name: Build iPad Keyboard
 
 on:
   workflow_dispatch:
-
-    push:
+  push:
     branches:
       - main
 
 jobs:
   build:
     runs-on: macos-latest
+    timeout-minutes: 20
 
     steps:
       - name: Checkout source
         uses: actions/checkout@v5
 
-      - name: Show Xcode version
-        run: xcodebuild -version
-
-      - name: Show iOS SDK
-        run: xcrun --sdk iphoneos --show-sdk-path
+      - name: Show runner environment
+        run: |
+          echo "=== RUNNER ==="
+          echo "OS: $RUNNER_OS"
+          echo "ARCH: $RUNNER_ARCH"
+          uname -a
+          echo "=== XCODE ==="
+          xcodebuild -version
+          echo "=== IOS SDK ==="
+          xcrun --sdk iphoneos --show-sdk-version
+          xcrun --sdk iphoneos --show-sdk-path
+          echo "=== DISK ==="
+          df -h
+          echo "=== MEMORY ==="
+          sysctl hw.memsize
 
       - name: Show project structure
         run: |
           xcodebuild -list \
             -project "_28hangul.xcodeproj"
 
-            - name: Show runner environment
-  run: |
-    echo "=== RUNNER ==="
-    echo "OS: $RUNNER_OS"
-    echo "ARCH: $RUNNER_ARCH"
-    uname -a
-    echo "=== XCODE ==="
-    xcodebuild -version
-    echo "=== IOS SDK ==="
-    xcrun --sdk iphoneos --show-sdk-version
-    echo "=== DISK ==="
-    df -h
-    echo "=== MEMORY ==="
-    sysctl hw.memsize
+      - name: Show deployment targets
+        run: |
+          xcodebuild \
+            -showBuildSettings \
+            -project "_28hangul.xcodeproj" \
+            -scheme "_28hangul" \
+            -configuration Release \
+            -sdk iphoneos \
+            -destination "generic/platform=iOS" \
+            | grep "IPHONEOS_DEPLOYMENT_TARGET"
 
       - name: Build app and keyboard extension
         run: |
+          set -o pipefail
           xcodebuild clean build \
             -project "_28hangul.xcodeproj" \
             -scheme "_28hangul" \
@@ -50,7 +60,8 @@ jobs:
             -sdk iphoneos \
             -destination "generic/platform=iOS" \
             -derivedDataPath "$PWD/DerivedData" \
-            CODE_SIGNING_ALLOWED=NO
+            CODE_SIGNING_ALLOWED=NO \
+            | tee build.log
 
       - name: Verify app
         run: |
@@ -75,3 +86,4 @@ jobs:
         with:
           name: oldhangulkeyboard-unsigned
           path: DerivedData/Build/Products/Release-iphoneos/_28hangul.app
+YAML
