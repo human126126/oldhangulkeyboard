@@ -2,10 +2,6 @@ name: Build iPad Keyboard
 
 on:
   workflow_dispatch:
-  push:
-    branches:
-      - main
-
 jobs:
   build:
     runs-on: macos-latest
@@ -79,11 +75,11 @@ jobs:
             -print
       - name: Create unsigned IPA
         run: |
-          mkdir -p "$PWD/ipa/Payload"
-          cp -R "$PWD/DerivedData/Build/Products/Release-iphoneos/_28hangul.app" \
-                "$PWD/ipa/Payload/_28hangul.app"
-          cd "$PWD/ipa"
-          zip -r "$PWD/oldhangulkeyboard-unsigned.ipa" Payload
+          mkdir -p "$GITHUB_WORKSPACE/ipa/Payload"
+          cp -R "$GITHUB_WORKSPACE/DerivedData/Build/Products/Release-iphoneos/_28hangul.app" \
+                "$GITHUB_WORKSPACE/ipa/Payload/_28hangul.app"
+          cd "$GITHUB_WORKSPACE/ipa"
+          zip -qry "$GITHUB_WORKSPACE/oldhangulkeyboard-unsigned.ipa" Payload
 
       - name: Upload unsigned IPA
         uses: actions/upload-artifact@v4
