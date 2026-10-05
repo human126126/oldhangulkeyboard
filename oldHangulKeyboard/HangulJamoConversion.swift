@@ -1,0 +1,332 @@
+import Foundation
+
+enum HangulJamoConversion {
+
+    private static let choToJongMain: [UInt32] = [
+        0x11A8, 0x11A9, 0x11AB, 0x11AE, 0xD7CD, 0x11AF, 0x11B7, 0x11B8,
+        0xD7E6, 0x11BA, 0x11BB, 0x11BC, 0x11BD, 0xD7F9, 0x11BE, 0x11BF,
+        0x11C0, 0x11C1, 0x11C2, 0x11C5, 0x11FF, 0x11C6, 0, 0x11CA,
+        0x11CD, 0x11D0, 0x11B6, 0xD7DD, 0x11DC, 0x11E2, 0, 0,
+        0xD7E3, 0x11B9, 0, 0xD7E7, 0, 0, 0, 0xD7E8,
+        0xD7E9, 0, 0x11E4, 0x11E6, 0, 0x11E7, 0, 0x11E8,
+        0x11E9, 0xD7EA, 0x11EA, 0, 0, 0, 0xD7EF, 0xD7F0,
+        0, 0xD7F1, 0, 0xD7F2, 0, 0, 0, 0,
+        0x11EB, 0x11EC, 0, 0, 0, 0, 0, 0x11EE,
+        0, 0, 0, 0, 0x11F0, 0, 0, 0,
+        0, 0, 0, 0, 0, 0, 0x11F3, 0x11F4,
+        0, 0x11F9, 0, 0x11C7, 0x11AC, 0x11AD, 0x11CB, 0,
+    ]
+
+    private static let choToJongExtA: [UInt32] = [
+        0, 0xD7CF, 0xD7D0, 0xD7D2, 0x11B0, 0xD7D5, 0x11CE, 0,
+        0x11B1, 0x11B2, 0, 0x11D5, 0x11B3, 0, 0x11D8, 0x11DA,
+        0, 0x11DD, 0, 0, 0x11E5, 0, 0, 0,
+        0, 0, 0, 0, 0,
+    ]
+
+    private static let jongToChoMain: [UInt32] = [
+        0x1100, 0x1101, 0, 0x1102, 0x115C, 0x115D, 0x1103, 0x1105,
+        0xA964, 0xA968, 0xA969, 0xA96C, 0, 0, 0x111A, 0x1106,
+        0x1107, 0x1121, 0x1109, 0x110A, 0x110B, 0x110C, 0x110E, 0x110F,
+        0x1110, 0x1111, 0x1112, 0, 0, 0x1113, 0x1115, 0x115B,
+        0, 0, 0x1117, 0x115E, 0, 0x1118, 0xA966, 0,
+        0x1119, 0, 0, 0, 0, 0xA96B, 0, 0,
+        0xA96E, 0, 0xA96F, 0, 0x111C, 0xA971, 0, 0,
+        0, 0, 0x111D, 0, 0x112A, 0xA974, 0x112B, 0x112D,
+        0x112F, 0x1130, 0x1132, 0x1140, 0x1141, 0, 0x1147, 0,
+        0x114C, 0, 0, 0x1156, 0x1157, 0, 0, 0,
+        0, 0x1159, 0, 0, 0, 0, 0, 0x1114,
+    ]
+
+    private static let jongToChoExtB: [UInt32] = [
+        0, 0, 0x1104, 0, 0xA961, 0xA962, 0, 0xA963,
+        0, 0, 0xA965, 0, 0, 0, 0, 0,
+        0, 0, 0x111B, 0, 0, 0, 0, 0,
+        0x1120, 0, 0, 0x1108, 0x1123, 0x1127, 0x1128, 0x1131,
+        0, 0, 0, 0, 0x1136, 0x1137, 0x1139, 0x113B,
+        0, 0, 0, 0, 0, 0, 0x110D, 0,
+        0,
+    ]
+
+    private static let jongNCompMain: [Int] = [
+        1, 2, 2, 1, 2, 2, 1, 1, 2, 2, 2, 2, 2, 2, 2, 1,
+        1, 2, 1, 2, 1, 1, 1, 1, 1, 1, 1, 2, 3, 2, 2, 2,
+        2, 2, 2, 2, 3, 2, 2, 3, 2, 3, 3, 3, 3, 3, 3, 2,
+        2, 2, 2, 2, 2, 2, 3, 2, 2, 2, 2, 2, 2, 2, 2, 2,
+        2, 2, 2, 1, 2, 3, 2, 2, 1, 2, 2, 2, 2, 2, 2, 2,
+        2, 1, 2, 2, 2, 2, 2, 2,
+    ]
+
+    private static let jongNCompExtB: [Int] = [
+        2, 2, 2, 3, 2, 2, 3, 2, 2, 2, 3, 3, 3, 3, 3, 3,
+        2, 3, 2, 2, 3, 2, 3, 2, 2, 3, 2, 2, 3, 2, 2, 2,
+        3, 3, 3, 2, 2, 2, 2, 2, 2, 3, 2, 2, 2, 3, 2, 2,
+        2,
+    ]
+
+    private static let jongDiffMain: [(UInt32, UInt32)] = [
+        (0x1100, 0x1100),
+        (0x1100, 0x1101),
+        (0x1109, 0x0000),
+        (0x1102, 0x1102),
+        (0x110C, 0x115C),
+        (0x1112, 0x115D),
+        (0x1103, 0x1103),
+        (0x1105, 0x1105),
+        (0x1100, 0xA964),
+        (0x1106, 0xA968),
+        (0x1107, 0xA969),
+        (0x1109, 0xA96C),
+        (0x1110, 0x0000),
+        (0x1111, 0x0000),
+        (0x1112, 0x111A),
+        (0x1106, 0x1106),
+        (0x1107, 0x1107),
+        (0x1109, 0x1121),
+        (0x1109, 0x1109),
+        (0x1109, 0x110A),
+        (0x110B, 0x110B),
+        (0x110C, 0x110C),
+        (0x110E, 0x110E),
+        (0x110F, 0x110F),
+        (0x1110, 0x1110),
+        (0x1111, 0x1111),
+        (0x1112, 0x1112),
+        (0x1105, 0x0000),
+        (0x1100, 0x112D),
+        (0x1100, 0x1113),
+        (0x1103, 0x1115),
+        (0x1109, 0x115B),
+        (0x1140, 0x0000),
+        (0x1110, 0x0000),
+        (0x1100, 0x1117),
+        (0x1105, 0x115E),
+        (0x1109, 0x0000),
+        (0x1102, 0x1118),
+        (0x1103, 0xA966),
+        (0x1112, 0x0000),
+        (0x1105, 0x1119),
+        (0x1100, 0xA96F),
+        (0x1109, 0xA971),
+        (0x1109, 0x1121),
+        (0x1112, 0xA974),
+        (0x110B, 0x112B),
+        (0x1109, 0x110A),
+        (0x1140, 0x0000),
+        (0x110F, 0xA96E),
+        (0x1159, 0x0000),
+        (0x1100, 0xA96F),
+        (0x1105, 0x0000),
+        (0x1107, 0x111C),
+        (0x1109, 0xA971),
+        (0x1109, 0x110A),
+        (0x1140, 0x0000),
+        (0x110E, 0x0000),
+        (0x1112, 0x0000),
+        (0x110B, 0x111D),
+        (0x1105, 0x0000),
+        (0x1111, 0x112A),
+        (0x1112, 0xA974),
+        (0x110B, 0x112B),
+        (0x1100, 0x112D),
+        (0x1103, 0x112F),
+        (0x1105, 0x1130),
+        (0x1107, 0x1132),
+        (0x1140, 0x1140),
+        (0x1100, 0x0000),
+        (0x1100, 0x1101),
+        (0x114C, 0x0000),
+        (0x110F, 0x0000),
+        (0x114C, 0x114C),
+        (0x1109, 0x0000),
+        (0x1140, 0x0000),
+        (0x1107, 0x1156),
+        (0x110B, 0x1157),
+        (0x1102, 0x0000),
+        (0x1105, 0x0000),
+        (0x1106, 0x0000),
+        (0x1107, 0x0000),
+        (0x1159, 0x1159),
+        (0x1102, 0x0000),
+        (0x1107, 0x0000),
+        (0x110E, 0x0000),
+        (0x110F, 0x0000),
+        (0x1112, 0x0000),
+        (0x1102, 0x1114),
+    ]
+
+    private static let jongDiffExtB: [(UInt32, UInt32)] = [
+        (0x1105, 0x0000),
+        (0x110E, 0x0000),
+        (0x1103, 0x1104),
+        (0x1107, 0xA961),
+        (0x1107, 0xA961),
+        (0x1109, 0xA962),
+        (0x1100, 0x112D),
+        (0x110C, 0xA963),
+        (0x110E, 0x0000),
+        (0x1110, 0x0000),
+        (0x1100, 0x1101),
+        (0x1112, 0x0000),
+        (0x110F, 0xA96E),
+        (0x1112, 0x0000),
+        (0x1103, 0x1120),
+        (0x1111, 0x112A),
+        (0x114C, 0x0000),
+        (0x1112, 0x0000),
+        (0x110B, 0x111B),
+        (0x1102, 0x0000),
+        (0x1102, 0x1114),
+        (0x1106, 0x0000),
+        (0x1109, 0x1121),
+        (0x110C, 0x0000),
+        (0x1103, 0x1120),
+        (0x1111, 0x0000),
+        (0x1106, 0x0000),
+        (0x1107, 0x1108),
+        (0x1103, 0x112F),
+        (0x110C, 0x1127),
+        (0x110E, 0x1128),
+        (0x1106, 0x1131),
+        (0x110B, 0x112B),
+        (0x1100, 0x112D),
+        (0x1103, 0x112F),
+        (0x1140, 0x0000),
+        (0x110C, 0x1136),
+        (0x110E, 0x1137),
+        (0x1110, 0x1139),
+        (0x1112, 0x113B),
+        (0x1107, 0x0000),
+        (0x110B, 0x112B),
+        (0x1106, 0x0000),
+        (0x1112, 0x0000),
+        (0x1107, 0x0000),
+        (0x1107, 0x1108),
+        (0x110C, 0x110D),
+        (0x1109, 0x0000),
+        (0x1110, 0x0000),
+    ]
+
+
+    static func choseongToJongseong(
+        _ c: UInt32
+    ) -> UInt32? {
+
+        let value: UInt32
+
+        if (0x1100...0x115E).contains(c) {
+
+            value = choToJongMain[
+                Int(c - 0x1100)
+            ]
+
+        } else if (0xA960...0xA97C).contains(c) {
+
+            value = choToJongExtA[
+                Int(c - 0xA960)
+            ]
+
+        } else {
+            return nil
+        }
+
+        return value == 0 ? nil : value
+    }
+
+    static func jongseongToChoseong(
+        _ c: UInt32
+    ) -> UInt32? {
+
+        let value: UInt32
+
+        if (0x11A8...0x11FF).contains(c) {
+
+            value = jongToChoMain[
+                Int(c - 0x11A8)
+            ]
+
+        } else if (0xD7CB...0xD7FB).contains(c) {
+
+            value = jongToChoExtB[
+                Int(c - 0xD7CB)
+            ]
+
+        } else {
+            return nil
+        }
+
+        return value == 0 ? nil : value
+    }
+
+    private static func jongseongComponentCount(
+        _ c: UInt32
+    ) -> Int {
+
+        if (0x11A8...0x11FF).contains(c) {
+
+            return jongNCompMain[
+                Int(c - 0x11A8)
+            ]
+
+        }
+
+        if (0xD7CB...0xD7FB).contains(c) {
+
+            return jongNCompExtB[
+                Int(c - 0xD7CB)
+            ]
+
+        }
+
+        return 0
+    }
+
+    static func jongseongDiff(
+        previous: UInt32?,
+        current: UInt32
+    ) -> UInt32? {
+
+        guard let previous else {
+            return jongseongToChoseong(current)
+        }
+
+        let diff =
+            jongseongComponentCount(current)
+            - jongseongComponentCount(previous)
+            - 1
+
+        if diff == 2 {
+            return jongseongToChoseong(current)
+        }
+
+        guard diff == 0 || diff == 1 else {
+            return nil
+        }
+
+        let pair: (UInt32, UInt32)
+
+        if (0x11A8...0x11FF).contains(current) {
+
+            pair = jongDiffMain[
+                Int(current - 0x11A8)
+            ]
+
+        } else if (0xD7CB...0xD7FB).contains(current) {
+
+            pair = jongDiffExtB[
+                Int(current - 0xD7CB)
+            ]
+
+        } else {
+            return nil
+        }
+
+        let value =
+            diff == 0
+            ? pair.0
+            : pair.1
+
+        return value == 0 ? nil : value
+    }
+}
+
