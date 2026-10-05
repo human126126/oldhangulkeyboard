@@ -92,3 +92,102 @@ jobs:
         with:
           name: oldhangulkeyboard-unsigned
           path: DerivedData/Build/Products/Release-iphoneos/_28hangul.app
+
+                - name: Create signed IPA
+        env:
+          P12_PASSWORD: ${{ secrets.P12_PASSWORD }}
+        run: |
+          set -euo pipefail
+
+          APP_SOURCE="$GITHUB_WORKSPACE/DerivedData/Build/Products/Release-iphoneos/_28hangul.app"
+          SIGN_ROOT="$RUNNER_TEMP/signed"
+          APP_PATH="$SIGN_ROOT/Payload/_28hangul.app"
+          EXT_PATH="$APP_PATH/PlugIns/oldHangulKeyboard.appex"
+
+          CERT_PATH="$RUNNER_TEMP/인증서.p12"
+          MAIN_PROFILE="$RUNNER_TEMP/main.mobileprovision"
+          KEYBOARD_PROFILE="$RUNNER_TEMP/keyboard.mobileprovision"
+
+          MAIN_PROFILE_PLIST="$RUNNER_TEMP/main-profile.plist"
+          KEYBOARD_PROFILE_PLIST="$RUNNER_TEMP/keyboard-profile.plist"
+          MAIN_ENTITLEMENTS="$RUNNER_TEMP/main-entitlements.plist"
+          KEYBOARD_ENTITLEMENTS="$RUNNER_TEMP/keyboard-entitlements.plist"
+
+          KEYCHAIN_PATH="$RUNNER_TEMP/signing.keychain-db"
+          KEYCHAIN_PASSWORD="$(openssl rand -hex 24)"
+
+          echo '${{ secrets.CERTIFICATE_P12 }}' | base64 -D > "$CERT_PATH"
+          echo '${{ secrets.MAIN_PROVISIONING_PROFILE }}' | base64 -D > "$MAIN_PROFILE"
+          echo '${{ secrets.KEYBOARD_PROVISIONING_PROFILE }}' | base64 -D > "$KEYBOARD_PROFILE"
+
+          rm -rf "$SIGN_ROOT"
+          mkdir -p "$SIGN_ROOT/Payload"
+          cp -R "$APP_SOURCE" "$APP_PATH"
+
+          security cms -D -i "$MAIN_PROFILE" > "$MAIN_PROFILE_PLIST"
+          security cms -D -i "$KEYBOARD_PROFILE" > "$KEYBOARD_PROFILE_PLIST"
+
+          plutil -extract Entitlements xml1 -o "$MAIN_ENTITLEMENTS" "$MAIN_PROFILE_PLIST"
+          plutil -extract Entitlements xml1 -o "$KEYBOARD_ENTITLEMENTS" "$KEYBOARD_PROFILE_PLIST"
+
+          cp "$MAIN_PROFILE" "$APP_PATH/embedded.mobileprovision"
+          cp "$KEYBOARD_PROFILE" "$EXT_PATH/embedded.mobileprovision"
+
+          security create-keychain -p "$KEYCHAIN_PASSWORD" "$KEYCHAIN_PATH"
+          security set-keychain-settings -lut 21600 "$KEYCHAIN_PATH"
+          security unlock-keychain -p "$KEYCHAIN_PASSWORD" "$KEYCHAIN_PATH"
+
+          security import "$CERT_PATH" \
+            -k "$KEYCHAIN_PATH" \
+            -P "$P12_PASSWORD" \
+            -A \
+            -t cert \
+            -f pkcs12
+
+          security set-key-partition-list \
+            -S apple-tool:,apple:,codesign: \
+            -s \
+            -k "$KEYCHAIN_PASSWORD" \
+            "$KEYCHAIN_PATH"
+
+          SIGNING_IDENTITY="$(security find-identity -v -p codesigning "$KEYCHAIN_PATH" | awk '/Apple Development/ {print $2; exit}')"
+
+          if [ -z "$SIGNING_IDENTITY" ]; then
+            echo "Apple Development signing identity not found"
+            exit 1
+          fi
+
+          MAIN_BUNDLE_ID="$(defaults read "$APP_PATH/Info" CFBundleIdentifier)"
+          KEYBOARD_BUNDLE_ID="$(defaults read "$EXT_PATH/Info" CFBundleIdentifier)"
+
+          MAIN_PROFILE_ID="$(/usr/libexec/PlistBuddy -c 'Print :Entitlements:application-identifier' "$MAIN_PROFILE_PLIST")"
+          KEYBOARD_PROFILE_ID="$(/usr/libexec/PlistBuddy -c 'Print :Entitlements:application-identifier' "$KEYBOARD_PROFILE_PLIST")"
+
+          test "$MAIN_PROFILE_ID" = "63W9KYRU65.$MAIN_BUNDLE_ID"
+          test "$KEYBOARD_PROFILE_ID" = "63W9KYRU65.$KEYBOARD_BUNDLE_ID"
+
+          codesign \
+            --force \
+            --sign "$SIGNING_IDENTITY" \
+            --keychain "$KEYCHAIN_PATH" \
+            --entitlements "$KEYBOARD_ENTITLEMENTS" \
+            "$EXT_PATH"
+
+          codesign \
+            --force \
+            --sign "$SIGNING_IDENTITY" \
+            --keychain "$KEYCHAIN_PATH" \
+            --entitlements "$MAIN_ENTITLEMENTS" \
+            "$APP_PATH"
+
+          codesign --verify --strict --verbose=2 "$EXT_PATH"
+          codesign --verify --strict --verbose=2 "$APP_PATH"
+
+          cd "$SIGN_ROOT"
+          zip -qry "$GITHUB_WORKSPACE/oldhangulkeyboard-signed.ipa" Payload
+
+      - name: Upload signed IPA
+        uses: actions/upload-artifact@v4
+        with:
+          name: oldhangulkeyboard-signed
+          path: oldhangulkeyboard-signed.ipa
