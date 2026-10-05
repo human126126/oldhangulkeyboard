@@ -77,7 +77,20 @@ jobs:
           find "$PWD/DerivedData" \
             -path "*.app/HCRBatang.ttf" \
             -print
+      - name: Create unsigned IPA
+        run: |
+          mkdir -p "$PWD/ipa/Payload"
+          cp -R "$PWD/DerivedData/Build/Products/Release-iphoneos/_28hangul.app" \
+                "$PWD/ipa/Payload/_28hangul.app"
+          cd "$PWD/ipa"
+          zip -r "$PWD/oldhangulkeyboard-unsigned.ipa" Payload
 
+      - name: Upload unsigned IPA
+        uses: actions/upload-artifact@v4
+        with:
+          name: oldhangulkeyboard-unsigned-ipa
+          path: oldhangulkeyboard-unsigned.ipa
+          
       - name: Upload unsigned app
         uses: actions/upload-artifact@v4
         with:
