@@ -13,7 +13,7 @@ jobs:
 
     steps:
       - name: Checkout source
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
 
       - name: Show Xcode version
         run: xcodebuild -version
@@ -25,6 +25,21 @@ jobs:
         run: |
           xcodebuild -list \
             -project "_28hangul.xcodeproj"
+
+            - name: Show runner environment
+  run: |
+    echo "=== RUNNER ==="
+    echo "OS: $RUNNER_OS"
+    echo "ARCH: $RUNNER_ARCH"
+    uname -a
+    echo "=== XCODE ==="
+    xcodebuild -version
+    echo "=== IOS SDK ==="
+    xcrun --sdk iphoneos --show-sdk-version
+    echo "=== DISK ==="
+    df -h
+    echo "=== MEMORY ==="
+    sysctl hw.memsize
 
       - name: Build app and keyboard extension
         run: |
