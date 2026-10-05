@@ -1,0 +1,85 @@
+name: Build iPad Keyboard
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - main
+
+jobs:
+  build:
+    runs-on: macos-latest
+    timeout-minutes: 20
+
+    steps:
+      - name: Checkout source
+        uses: actions/checkout@v5
+
+      - name: Show runner environment
+        run: |
+          echo "=== RUNNER ==="
+          echo "OS: $RUNNER_OS"
+          echo "ARCH: $RUNNER_ARCH"
+          uname -a
+          echo "=== XCODE ==="
+          xcodebuild -version
+          echo "=== IOS SDK ==="
+          xcrun --sdk iphoneos --show-sdk-version
+          xcrun --sdk iphoneos --show-sdk-path
+          echo "=== DISK ==="
+          df -h
+          echo "=== MEMORY ==="
+          sysctl hw.memsize
+
+      - name: Show project structure
+        run: |
+          xcodebuild -list \
+            -project "_28hangul.xcodeproj"
+
+      - name: Show deployment targets
+        run: |
+          xcodebuild \
+            -showBuildSettings \
+            -project "_28hangul.xcodeproj" \
+            -scheme "_28hangul" \
+            -configuration Release \
+            -sdk iphoneos \
+            -destination "generic/platform=iOS" \
+            | grep "IPHONEOS_DEPLOYMENT_TARGET"
+
+      - name: Build app and keyboard extension
+        run: |
+          set -o pipefail
+          xcodebuild clean build \
+            -project "_28hangul.xcodeproj" \
+            -scheme "_28hangul" \
+            -configuration Release \
+            -sdk iphoneos \
+            -destination "generic/platform=iOS" \
+            -derivedDataPath "$PWD/DerivedData" \
+            CODE_SIGNING_ALLOWED=NO \
+            | tee build.log
+
+      - name: Verify app
+        run: |
+          find "$PWD/DerivedData" \
+            -type d -name "*.app" \
+            -print
+
+      - name: Verify keyboard extension
+        run: |
+          find "$PWD/DerivedData" \
+            -path "*.app/PlugIns/*.appex" \
+            -print
+
+      - name: Verify font
+        run: |
+          find "$PWD/DerivedData" \
+            -path "*.app/HCRBatang.ttf" \
+            -print
+
+      - name: Upload unsigned app
+        uses: actions/upload-artifact@v4
+        with:
+          name: oldhangulkeyboard-unsigned
+          path: DerivedData/Build/Products/Release-iphoneos/_28hangul.app
