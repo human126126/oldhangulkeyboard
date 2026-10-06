@@ -133,15 +133,16 @@ jobs:
           cp "$MAIN_PROFILE" "$APP_PATH/embedded.mobileprovision"
           cp "$KEYBOARD_PROFILE" "$EXT_PATH/embedded.mobileprovision"
 
-          security create-keychain -p "$KEYCHAIN_PASSWORD" "$KEYCHAIN_PATH"
+                    security create-keychain -p "$KEYCHAIN_PASSWORD" "$KEYCHAIN_PATH"
           security set-keychain-settings -lut 21600 "$KEYCHAIN_PATH"
           security unlock-keychain -p "$KEYCHAIN_PASSWORD" "$KEYCHAIN_PATH"
+
+          security list-keychains -d user -s "$KEYCHAIN_PATH"
 
           security import "$CERT_PATH" \
             -k "$KEYCHAIN_PATH" \
             -P "$P12_PASSWORD" \
             -A \
-            -t cert \
             -f pkcs12
 
           security set-key-partition-list \
@@ -150,8 +151,21 @@ jobs:
             -k "$KEYCHAIN_PASSWORD" \
             "$KEYCHAIN_PATH"
 
-          SIGNING_IDENTITY="$(security find-identity -v -p codesigning "$KEYCHAIN_PATH" | awk '/Apple Development/ {print $2; exit}')"
+          echo "===== Signing identities ====="
+          security find-identity -v -p codesigning "$KEYCHAIN_PATH"
 
+          SIGNING_IDENTITY="$(
+            security find-identity -v -p codesigning "$KEYCHAIN_PATH" \
+              | sed -n 's/.*"\(Apple Development:.*\)"/\1/p' \
+              | head -n 1
+          )"
+
+          if [ -z "$SIGNING_IDENTITY" ]; then
+            echo "Apple Development signing identity not found"
+            exit 1
+          fi
+
+          echo "Using signing identity: $SIGNING_IDENTITY"
           if [ -z "$SIGNING_IDENTITY" ]; then
             echo "Apple Development signing identity not found"
             exit 1
